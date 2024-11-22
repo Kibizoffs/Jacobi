@@ -1,0 +1,79 @@
+\documentclass[a4paper]{report}
+
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+
+\usepackage{amsmath}
+\usepackage{geometry}
+\usepackage{tocbibind} % Добавляем пакет для автоматического включения в оглавление
+
+\geometry{top=2cm, bottom=2cm, left=2.5cm, right=2.5cm}
+
+\title{
+\textbf{Московский Государственный Университет имени М.В.\ Ломоносова}\\
+\textbf{Факультет вычислительной математики и кибернетики}\\
+\textbf{Введение в численные методы}\\
+Отчёт по практическому заданию
+}
+
+\author{
+Студент Кибизов Кирилл, группа 207
+}
+\date{\number\year}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+
+\chapter*{Постановка задачи}
+
+Было предложено уравнение в частных производных:
+\[
+k_x \frac{\partial^2 u}{\partial x^2} + k_y \frac{\partial^2 u}{\partial y^2} = 0, \quad (x, y) \in [0, 1] \times [0, 1],
+\]
+с граничными условиями:
+\[
+\begin{cases}
+u(x, 0) = 0, & x \in [0, 1], \\
+u(0, y) = 0, & y \in [0, 1], \\
+u(x, 1) = \sin(\pi x), & x \in [0, 1], \\
+u(1, y) = 0, & y \in [0, 1].
+\end{cases}
+\]
+Разностная схема:
+\[
+\begin{cases}
+k_x \dfrac{u_{i+1,j} - 2u_{i,j} + u_{i-1,j}}{h^2} + k_y \dfrac{u_{i,j+1} - 2u_{i,j} + u_{i,j-1}}{h^2} = 0, & i = \overline{1,N-1},\ j = \overline{1,N-1}, \\
+u_{i,0} = 0, & i = \overline{0,N}, \\
+u_{0,j} = 0, & j = \overline{0,N}, \\
+u_{i,N} = 0, & i = \overline{0,N}, \\
+u_{N,j} = 0, & j = \overline{0,N}.
+\end{cases}
+\]
+где
+\[
+u_{i,j} \approx u(x_i, y_j), \quad x_i = \dfrac{i}{N}, \quad y_j = \dfrac{j}{N}, \quad h = \dfrac{1}{N}.
+\]
+Требуется решить данную СЛАУ с помощью итерационного метода Якоби для $N = 100$, рассматривая следующие случаи:
+\begin{enumerate}
+    \item $k_x = k_y = 1$,
+    \item $k_x = 1$, \quad $k_y = 10^6$.
+\end{enumerate}
+
+\chapter*{Описание числовых методов}
+
+\chapter*{Анализ применимости числовых методов}
+
+\chapter*{Реализация числовых методов}
+
+\chapter*{Заключение}
+
+\begin{thebibliography}{1}
+\renewcommand{\bibname}{Литература}
+\bibitem{Samarskiy} Самарский А.\,А. \textit{Введение в численные методы}. — М.: Наука, 1989. — 416 с.
+\end{thebibliography}
+
+\end{document}
