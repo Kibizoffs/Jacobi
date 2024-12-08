@@ -52,8 +52,8 @@ Mkfile.old
 dkms.conf
 
 *.aux
-*.log
-*.toc
-*.gz
 *.csv
-*#
+*.gz
+*.log
+*.out
+*.toc
