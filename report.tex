@@ -1,4 +1,4 @@
-\documentclass[a4paper]{report}
+\documentclass[a4paper, fleqn]{report}
 
 \usepackage[T2A]{fontenc}
 \usepackage[utf8]{inputenc}
@@ -6,7 +6,8 @@
 
 \usepackage{amsmath}
 \usepackage{geometry}
-\usepackage{tocbibind} % Добавляем пакет для автоматического включения в оглавление
+\usepackage{enumitem}
+\usepackage{tocbibind}
 
 \geometry{top=2cm, bottom=2cm, left=2.5cm, right=2.5cm}
 
@@ -30,46 +31,58 @@
 
 \chapter*{Постановка задачи}
 
-Было предложено уравнение в частных производных:
-\[
-k_x \frac{\partial^2 u}{\partial x^2} + k_y \frac{\partial^2 u}{\partial y^2} = 0, \quad (x, y) \in [0, 1] \times [0, 1],
-\]
-с граничными условиями:
+\section*{Дано:}
+\begin{enumerate}[label=\arabic*.]
+\item Уравнение в частных производных с граничными условиями:
 \[
 \begin{cases}
-u(x, 0) = 0, & x \in [0, 1], \\
-u(0, y) = 0, & y \in [0, 1], \\
-u(x, 1) = \sin(\pi x), & x \in [0, 1], \\
-u(1, y) = 0, & y \in [0, 1].
+k_x \frac{\partial^2 u}{\partial x^2} + k_y \frac{\partial^2 u}{\partial y^2} = 0, \quad (x, y) \in [0, 1] \times [0, 1], \\
+u(x, 0) = 0, \quad x \in [0, 1] \\
+u(0, y) = 0, \quad y \in [0, 1] \\
+u(x, 1) = \sin(\pi x), \quad x \in [0, 1] \\
+u(1, y) = 0, \quad y \in [0, 1] \\
 \end{cases}
 \]
-Разностная схема:
+\item Разностная схема:
 \[
 \begin{cases}
-k_x \dfrac{u_{i+1,j} - 2u_{i,j} + u_{i-1,j}}{h^2} + k_y \dfrac{u_{i,j+1} - 2u_{i,j} + u_{i,j-1}}{h^2} = 0, & i = \overline{1,N-1},\ j = \overline{1,N-1}, \\
-u_{i,0} = 0, & i = \overline{0,N}, \\
-u_{0,j} = 0, & j = \overline{0,N}, \\
-u_{i,N} = 0, & i = \overline{0,N}, \\
-u_{N,j} = 0, & j = \overline{0,N}.
+k_x \dfrac{u_{i+1,j} - 2u_{i,j} + u_{i-1,j}}{h^2} + k_y \dfrac{u_{i,j+1} - 2u_{i,j} + u_{i,j-1}}{h^2} = 0, \quad i = \overline{1,N-1},\ j = \overline{1,N-1}, \\
+u_{i,0} = 0, \quad i = \overline{0,N}, \\
+u_{0,j} = 0, \quad j = \overline{0,N}, \\
+u_{i,N} = 0, \quad i = \overline{0,N}, \\
+u_{N,j} = 0, \quad j = \overline{0,N}.
 \end{cases}
 \]
 где
 \[
 u_{i,j} \approx u(x_i, y_j), \quad x_i = \dfrac{i}{N}, \quad y_j = \dfrac{j}{N}, \quad h = \dfrac{1}{N}.
 \]
-Требуется решить данную СЛАУ с помощью итерационного метода Якоби для $N = 100$, рассматривая следующие случаи:
+\item Аналитическое решение данной задачи:
+\[
+u(x, y) = \dfrac{\sinh(\pi y)}{\sinh(\pi)} \sin(\pi x)
+\]
+\end{enumerate}
+
+\section*{Задача:}
+\textbf{Требуется решить данную СЛАУ с помощью итерационного метода Якоби (где он применим)} для $N = 100$, рассматривая следующие случаи:
 \begin{enumerate}
     \item $k_x = k_y = 1$,
-    \item $k_x = 1$, \quad $k_y = 10^6$.
+    \item $k_x = 1$, $k_y = 10^6$.
 \end{enumerate}
+\textbf{В случае неприменимости итерационного метода якоби предложить рабочий альтернативный метод.}
+
 
 \chapter*{Описание числовых методов}
 
+
 \chapter*{Анализ применимости числовых методов}
+
 
 \chapter*{Реализация числовых методов}
 
+
 \chapter*{Заключение}
+
 
 \begin{thebibliography}{1}
 \renewcommand{\bibname}{Литература}
