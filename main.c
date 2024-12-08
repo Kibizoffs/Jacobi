@@ -8,9 +8,9 @@
 
 enum
 {
-    MAX_TESTS_AMOUNT = 10,
-    N                = 100,
-    MAX_ITER         = 66666,
+    MAX_TESTS_AMOUNT = 10, // the max amount of tests, however we need only 2 in the task
+    N                = 100, // the amount of steps by x and y
+    MAX_ITERS        = 66666, // the max amout of iterations
 };
 
 #define PLOT 1 // "1" to enable gnuplot; "0" to disable gnuplot
@@ -18,8 +18,7 @@ enum
 #define CSV_FILE "result.csv"
 #define PLOT_SCRIPT "plot.gnu"
 
-double s = 1; // length
-double h = 1.0 / N; // step by x and y
+double h = 1.0 / N; // delta-step by x and y
 
 double *glob_tests = NULL;
 pid_t glob_gnuplot_pid = 0;
@@ -31,9 +30,7 @@ void cleanup_iter(void) {
         waitpid(glob_gnuplot_pid, NULL, 0);
         glob_gnuplot_pid = 0;
     }
-    if (remove(CSV_FILE) != 0) {
-        perror("Error removing CSV file");
-    }
+    remove(CSV_FILE);
 }
 
 // Cleanup all resources
@@ -61,17 +58,18 @@ void input_tests(unsigned int *tests_c) {
         exit(EXIT_FAILURE);
     }
 
-    glob_tests = malloc((*tests_c) * 2 * sizeof(double));
+    glob_tests = malloc((*tests_c) * 3 * sizeof(double));
     if (!glob_tests) {
-        printf("Err: can't allocate memory");
+        printf("Err: can't allocate memory\n");
         cleanup_all();
         exit(EXIT_FAILURE);
     }
 
+    printf("Leave 3rd argument as 0 (for Jacobi) or as w (w = 1 for Gauss-Seidel; 1 < w < 2 for SOR)\n");
     for (unsigned int i = 0; i < *tests_c; ++i) {
-        printf("Input kx and ky for test #%u: ", i + 1);
-        if (scanf("%lf%lf", &glob_tests[2 * i], &glob_tests[2 * i + 1]) != 2) {
-            printf("Err: invalid input for test #%u.\n", i + 1);
+        printf("Input kx and ky and '0' or w;  for test #%u: ", i + 1);
+        if (scanf("%lf%lf%lf", &glob_tests[3 * i], &glob_tests[3 * i + 1], &glob_tests[3 * i + 2]) != 3) {
+            printf("Err: invalid input for test #%u\n", i + 1);
             cleanup_all();
             exit(EXIT_FAILURE);
         }
@@ -86,7 +84,6 @@ double solve_analyt(double x, double y) {
 // Solve SLAE using Jacobi method
 int solve_slae_via_jacobi(double u[N + 1][N + 1], double kx, double ky) {
     double u_new[N + 1][N + 1] = {{0.0}};
-
     for (int i = 0; i <= N; ++i) {
         double x = i * h;
         u_new[i][N] = u[i][N] = sin(M_PI * x);
@@ -98,9 +95,7 @@ int solve_slae_via_jacobi(double u[N + 1][N + 1], double kx, double ky) {
         max_dif = 0.0;
         for (int i = 1; i < N; ++i) {
             for (int j = 1; j < N; ++j) {
-                u_new[i][j] = (kx * (u[i + 1][j] + u[i - 1][j]) +
-                               ky * (u[i][j + 1] + u[i][j - 1])) /
-                              (2 * (kx + ky));
+                u_new[i][j] = (kx*(u[i+1][j] + u[i-1][j]) + ky*(u[i][j+1] + u[i][j-1])) / (2*(kx+ky));
                 double dif = fabs(u[i][j] - u_new[i][j]);
                 if (max_dif < dif) {
                     max_dif = dif;
@@ -114,10 +109,42 @@ int solve_slae_via_jacobi(double u[N + 1][N + 1], double kx, double ky) {
             }
         }
 
-    } while ((++iter < MAX_ITER) && (max_dif > EPS));
+    } while ((++iter < MAX_ITERS) && (max_dif > EPS));
 
-    if (iter == MAX_ITER) {
-        printf("Doesn't converge\n");
+    if (iter == MAX_ITERS) {
+        return -1;
+    }
+
+    return iter;
+}
+
+// Solve SLAE using method with w
+int solve_slae_via_w(double u[N + 1][N + 1], double kx, double ky, double w) {
+    for (int i = 0; i <= N; ++i) {
+        double x = i * h;
+        u[i][N] = sin(M_PI * x);
+    }
+
+    int iter = 0;
+    double max_dif;
+    do {
+        max_dif = 0.0;
+        for (int i = 1; i < N; ++i) {
+            for (int j = 1; j < N; ++j) {
+                double old_val = u[i][j];
+                double tmp = (kx*(u[i+1][j] + u[i-1][j]) + ky*(u[i][j+1] + u[i][j-1])) / (2*(kx+ky));
+                u[i][j] = (1 - w)*old_val + w*tmp;
+
+                double dif = fabs(u[i][j] - old_val);
+                if (max_dif < dif) {
+                    max_dif = dif;
+                }
+            }
+        }
+
+    } while ((++iter < MAX_ITERS) && (max_dif > EPS));
+
+    if (iter == MAX_ITERS) {
         return -1;
     }
 
@@ -128,7 +155,7 @@ int solve_slae_via_jacobi(double u[N + 1][N + 1], double kx, double ky) {
 void output_result(double u[N + 1][N + 1], int iters, int cur_test) {
     FILE *csv_fd = fopen(CSV_FILE, "w");
     if (!csv_fd) {
-        perror("Err: can't open CSV file");
+        perror("Err: can't open CSV file\n");
         cleanup_all();
         exit(EXIT_FAILURE);
     }
@@ -156,19 +183,18 @@ void output_result(double u[N + 1][N + 1], int iters, int cur_test) {
     if (PLOT) {
         glob_gnuplot_pid = fork();
         if (glob_gnuplot_pid < 0) {
-            perror("Err: can't fork process for gnuplot");
+            perror("Err: can't fork process for gnuplot\n");
             cleanup_all();
             exit(EXIT_FAILURE);
         } else if (glob_gnuplot_pid == 0) {
             execlp("gnuplot", "gnuplot", PLOT_SCRIPT, NULL);
-            perror("Err: can't execute gnuplot");
+            perror("Err: can't execute gnuplot\n");
             exit(EXIT_FAILURE);
         }
         wait(NULL);
     }
 }
 
-// Main function
 int main(void) {
     signal(SIGINT, sigint_handler);
 
@@ -176,20 +202,33 @@ int main(void) {
     input_tests(&tests_c);
 
     for (unsigned int cur_test = 0; cur_test < tests_c; ++cur_test) {
-        double kx = glob_tests[2 * cur_test];
-        double ky = glob_tests[2 * cur_test + 1];
+        double kx = glob_tests[3 * cur_test];
+        double ky = glob_tests[3 * cur_test + 1];
+        double w = glob_tests[3 * cur_test + 2];
 
         double u[N + 1][N + 1] = {{0.0}};
-        int iters = solve_slae_via_jacobi(u, kx, ky);
+        int iters;
+        if (w == 0.0){
+            iters = solve_slae_via_jacobi(u, kx, ky);
+        }
+        else if ((1 <= w) && (w < 2)){
+            iters = solve_slae_via_w(u, kx, ky, w);
+        }
+        else{
+            printf("Err: invalid w for test #%d\n", cur_test + 1);
+            continue;
+        }
 
         if (iters == -1) {
-            printf("Test #%d doesn't converge\n", cur_test + 1);
+            printf("Test #%d doesn't converge. Try increasing MAX_ITERS\n", cur_test + 1);
             continue;
         }
 
         output_result(u, iters, cur_test);
 
-        while (getchar() != '\n');
+        if (cur_test != tests_c - 1){
+            while (getchar() != '\n');
+        }
     }
 
     cleanup_all();
