@@ -67,7 +67,7 @@ void input_tests(unsigned int *tests_c) {
 
     printf("Leave 3rd argument as 0 (for Jacobi) or as w (w = 1 for Gauss-Seidel; 1 < w < 2 for SOR)\n");
     for (unsigned int i = 0; i < *tests_c; ++i) {
-        printf("Input kx and ky and '0' or w;  for test #%u: ", i + 1);
+        printf("Input kx and ky and w; for test #%u: ", i + 1);
         if (scanf("%lf%lf%lf", &glob_tests[3 * i], &glob_tests[3 * i + 1], &glob_tests[3 * i + 2]) != 3) {
             printf("Err: invalid input for test #%u\n", i + 1);
             cleanup_all();
@@ -77,8 +77,8 @@ void input_tests(unsigned int *tests_c) {
 }
 
 // Analytical solution
-double solve_analyt(double x, double y) {
-    return (sinh(M_PI * y) / sinh(M_PI)) * sin(M_PI * x);
+double solve_analyt(double x, double y, double ky) {
+    return (sinh(M_PI * y / sqrt(ky)) / sinh(M_PI) / sqrt(ky)) * sin(M_PI * x);
 }
 
 // Solve SLAE using Jacobi method
@@ -164,8 +164,8 @@ void output_result(double u[N + 1][N + 1], int iters, int cur_test) {
         for (int j = 0; j <= N; ++j) {
             double x = i * h;
             double y = j * h;
-            if ((i % 10 == 0) && (j % 10 == 0)) {
-                printf("u(%8.6lf, %8.6lf) | %8.6lf | %8.6lf\n", x, y, u[i][j], solve_analyt(x, y));
+            if ((i % 25 == 0) && (j % 25 == 0)) {
+                printf("u(%8.6lf, %8.6lf) | %8.6lf | %8.6lf\n", x, y, u[i][j], solve_analyt(x, y, glob_tests[3 * cur_test + 1]));
             }
             fprintf(csv_fd, "%8.6lf %8.6lf %8.6lf\n", x, y, u[i][j]);
         }
