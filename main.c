@@ -1,6 +1,7 @@
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <math.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -15,11 +16,12 @@ enum
 
 #define PLOT 1 // "1" to enable gnuplot; "0" to disable gnuplot
 #define EPS 1e-6
-#define CSV_FILE "result.csv"
-#define PLOT_SCRIPT "plot.gnu"
+#define RESULT_CSV "result.csv"
+#define OMEGA_CSV "omega.csv"
+#define RESULT_GNU "result.gnu"
+#define OMEGA_GNU "omega.gnu"
 
 double h = 1.0 / N; // delta-step by x and y
-
 double *glob_tests = NULL;
 pid_t glob_gnuplot_pid = 0;
 
@@ -30,7 +32,8 @@ void cleanup_iter(void) {
         waitpid(glob_gnuplot_pid, NULL, 0);
         glob_gnuplot_pid = 0;
     }
-    remove(CSV_FILE);
+    //remove(RESULT_CSV);
+    //remove(OMEGA_CSV);
 }
 
 // Cleanup all resources
@@ -65,7 +68,7 @@ void input_tests(unsigned int *tests_c) {
         exit(EXIT_FAILURE);
     }
 
-    printf("Leave 3rd argument as 0 (for Jacobi) or as w (w = 1 for Gauss-Seidel; 1 < w < 2 for SOR)\n");
+    printf("Leave 3rd argument as 0 (for Jacobi) or as w (w = 1 for Gauss-Seidel; 1 < w < 2 for SOR; w = -1 for optimal w)\n");
     for (unsigned int i = 0; i < *tests_c; ++i) {
         printf("Input kx and ky and w; for test #%u: ", i + 1);
         if (scanf("%lf%lf%lf", &glob_tests[3 * i], &glob_tests[3 * i + 1], &glob_tests[3 * i + 2]) != 3) {
@@ -153,7 +156,7 @@ int solve_slae_via_w(double u[N + 1][N + 1], double kx, double ky, double w) {
 
 // Output results and plot using gnuplot
 void output_result(double u[N + 1][N + 1], int iters, int cur_test) {
-    FILE *csv_fd = fopen(CSV_FILE, "w");
+    FILE *csv_fd = fopen(RESULT_CSV, "w");
     if (!csv_fd) {
         perror("Err: can't open CSV file\n");
         cleanup_all();
@@ -187,7 +190,7 @@ void output_result(double u[N + 1][N + 1], int iters, int cur_test) {
             cleanup_all();
             exit(EXIT_FAILURE);
         } else if (glob_gnuplot_pid == 0) {
-            execlp("gnuplot", "gnuplot", PLOT_SCRIPT, NULL);
+            execlp("gnuplot", "gnuplot", RESULT_GNU, NULL);
             perror("Err: can't execute gnuplot\n");
             exit(EXIT_FAILURE);
         }
@@ -207,24 +210,64 @@ int main(void) {
         double w = glob_tests[3 * cur_test + 2];
 
         double u[N + 1][N + 1] = {{0.0}};
-        int iters;
-        if (w == 0.0){
-            iters = solve_slae_via_jacobi(u, kx, ky);
-        }
-        else if ((1 <= w) && (w < 2)){
-            iters = solve_slae_via_w(u, kx, ky, w);
-        }
-        else{
-            printf("Err: invalid w for test #%d\n", cur_test + 1);
-            continue;
-        }
+        int iters = -1;
+        if (w >= 0){
+            if (w == 0.0){
+                iters = solve_slae_via_jacobi(u, kx, ky);
+            }
+            else if ((1 <= w) && (w < 2)){
+                iters = solve_slae_via_w(u, kx, ky, w);
+            }
 
-        if (iters == -1) {
-            printf("Test #%d doesn't converge. Try increasing MAX_ITERS\n", cur_test + 1);
-            continue;
-        }
+            if (iters == -1) {
+                printf("Test #%d doesn't converge. Try increasing MAX_ITERS\n", cur_test + 1);
+                continue;
+            }
 
-        output_result(u, iters, cur_test);
+            output_result(u, iters, cur_test);
+        }
+        else if (w == -1.0){
+            FILE *csv_fd = fopen(OMEGA_CSV, "w");
+            if (!csv_fd) {
+                perror("Err: can't open CSV file\n");
+                cleanup_all();
+                exit(EXIT_FAILURE);
+            }
+
+            double omega = 1.0;
+            int optimal_iters = MAX_ITERS;
+            double optimal_omega = -1.0;
+
+            printf("This may take time...\n");
+            while (omega < 2.0){
+                iters = solve_slae_via_w(u, kx, ky, omega);
+                fprintf(csv_fd, "%.2lf %d\n", omega, iters);
+                if ((optimal_iters > iters) && (iters != -1)){
+                    optimal_iters = iters;
+                    optimal_omega = omega;
+                }
+                omega += 0.01;
+                memset(u, 0, sizeof u);
+            }
+
+            fclose(csv_fd);
+
+            printf("Optimal omega: %lf\nIters: %d\n", optimal_omega, optimal_iters);
+
+            if (PLOT) {
+                glob_gnuplot_pid = fork();
+                if (glob_gnuplot_pid < 0) {
+                    perror("Err: can't fork process for gnuplot\n");
+                    cleanup_all();
+                    exit(EXIT_FAILURE);
+                } else if (glob_gnuplot_pid == 0) {
+                    execlp("gnuplot", "gnuplot", OMEGA_GNU, NULL);
+                    perror("Err: can't execute gnuplot\n");
+                    exit(EXIT_FAILURE);
+                }
+                wait(NULL);
+            }
+        }
 
         if (cur_test != tests_c - 1){
             while (getchar() != '\n');
