@@ -32,8 +32,8 @@ void cleanup_iter(void) {
         waitpid(glob_gnuplot_pid, NULL, 0);
         glob_gnuplot_pid = 0;
     }
-    //remove(RESULT_CSV);
-    //remove(OMEGA_CSV);
+    remove(RESULT_CSV);
+    remove(OMEGA_CSV);
 }
 
 // Cleanup all resources
@@ -81,7 +81,7 @@ void input_tests(unsigned int *tests_c) {
 
 // Analytical solution
 double solve_analyt(double x, double y, double ky) {
-    return (sinh(M_PI * y / sqrt(ky)) / sinh(M_PI) / sqrt(ky)) * sin(M_PI * x);
+    return ((sinh(M_PI * y / sqrt(ky)) / sinh(M_PI / sqrt(ky))) * sin(M_PI * x));
 }
 
 // Solve SLAE using Jacobi method
@@ -156,8 +156,8 @@ int solve_slae_via_w(double u[N + 1][N + 1], double kx, double ky, double w) {
 
 // Output results and plot using gnuplot
 void output_result(double u[N + 1][N + 1], int iters, int cur_test) {
-    FILE *csv_fd = fopen(RESULT_CSV, "w");
-    if (!csv_fd) {
+    FILE *result_csv_fd = fopen(RESULT_CSV, "w");
+    if (!result_csv_fd) {
         perror("Err: can't open CSV file\n");
         cleanup_all();
         exit(EXIT_FAILURE);
@@ -167,14 +167,14 @@ void output_result(double u[N + 1][N + 1], int iters, int cur_test) {
         for (int j = 0; j <= N; ++j) {
             double x = i * h;
             double y = j * h;
-            if ((i % 25 == 0) && (j % 25 == 0)) {
+            if ((i % 10 == 0) && (j % 10 == 0)) {
                 printf("u(%8.6lf, %8.6lf) | %8.6lf | %8.6lf\n", x, y, u[i][j], solve_analyt(x, y, glob_tests[3 * cur_test + 1]));
             }
-            fprintf(csv_fd, "%8.6lf %8.6lf %8.6lf\n", x, y, u[i][j]);
+            fprintf(result_csv_fd, "%8.6lf %8.6lf %8.6lf %8.6lf\n", x, y, u[i][j], fabs(u[i][j] - solve_analyt(x, y, glob_tests[3 * cur_test + 1])));
         }
     }
 
-    fclose(csv_fd);
+    fclose(result_csv_fd);
 
     printf(
         "--------\n"
@@ -198,7 +198,7 @@ void output_result(double u[N + 1][N + 1], int iters, int cur_test) {
     }
 }
 
-int main(void) {
+int main(void){
     signal(SIGINT, sigint_handler);
 
     unsigned int tests_c;
@@ -227,8 +227,8 @@ int main(void) {
             output_result(u, iters, cur_test);
         }
         else if (w == -1.0){
-            FILE *csv_fd = fopen(OMEGA_CSV, "w");
-            if (!csv_fd) {
+            FILE *omega_csv_fd = fopen(OMEGA_CSV, "w");
+            if (!omega_csv_fd) {
                 perror("Err: can't open CSV file\n");
                 cleanup_all();
                 exit(EXIT_FAILURE);
@@ -241,7 +241,7 @@ int main(void) {
             printf("This may take time...\n");
             while (omega < 2.0){
                 iters = solve_slae_via_w(u, kx, ky, omega);
-                fprintf(csv_fd, "%.2lf %d\n", omega, iters);
+                fprintf(omega_csv_fd, "%.2lf %d\n", omega, iters);
                 if ((optimal_iters > iters) && (iters != -1)){
                     optimal_iters = iters;
                     optimal_omega = omega;
@@ -250,11 +250,16 @@ int main(void) {
                 memset(u, 0, sizeof u);
             }
 
-            fclose(csv_fd);
+            fclose(omega_csv_fd);
 
-            printf("Optimal omega: %lf\nIters: %d\n", optimal_omega, optimal_iters);
+            printf(
+                "Optimal omega: %lf\n"
+                "Iters: %d\n"
+                "Type enter to continue...\n",
+                optimal_omega, optimal_iters
+            );
 
-            if (PLOT) {
+            if (PLOT){
                 glob_gnuplot_pid = fork();
                 if (glob_gnuplot_pid < 0) {
                     perror("Err: can't fork process for gnuplot\n");
