@@ -11,7 +11,7 @@ enum
 {
     MAX_TESTS_AMOUNT = 10, // the max amount of tests, however we need only 2 in the task
     N                = 100, // the amount of steps by x and y
-    MAX_ITERS        = 66666, // the max amout of iterations
+    MAX_ITERS        = 1000, // the max amout of iterations
 };
 
 #define PLOT 1 // "1" to enable gnuplot; "0" to disable gnuplot
@@ -68,7 +68,7 @@ void input_tests(unsigned int *tests_c) {
         exit(EXIT_FAILURE);
     }
 
-    printf("Leave 3rd argument as 0 (for Jacobi) or as w (w = 1 for Gauss-Seidel; 1 < w < 2 for SOR; w = -1 for optimal w)\n");
+    printf("Leave 3rd argument as 0 (for Jacobi) or as w (w = 1 for Gauss-Seidel; 0 < w < 2 for SOR; w = -1 for optimal w)\n");
     for (unsigned int i = 0; i < *tests_c; ++i) {
         printf("Input kx and ky and w; for test #%u: ", i + 1);
         if (scanf("%lf%lf%lf", &glob_tests[3 * i], &glob_tests[3 * i + 1], &glob_tests[3 * i + 2]) != 3) {
@@ -134,8 +134,8 @@ int solve_slae_via_w(double u[N + 1][N + 1], double kx, double ky, double w) {
         max_dif = 0.0;
         for (int i = 1; i < N; ++i) {
             for (int j = 1; j < N; ++j) {
-                double old_val = u[i][j];
                 double tmp = (kx*(u[i+1][j] + u[i-1][j]) + ky*(u[i][j+1] + u[i][j-1])) / (2*(kx+ky));
+                double old_val = u[i][j];
                 u[i][j] = (1 - w)*old_val + w*tmp;
 
                 double dif = fabs(u[i][j] - old_val);
@@ -234,19 +234,22 @@ int main(void){
                 exit(EXIT_FAILURE);
             }
 
-            double omega = 1.0;
+            double omega = 0.5;
             int optimal_iters = MAX_ITERS;
             double optimal_omega = -1.0;
 
             printf("This may take time...\n");
             while (omega < 2.0){
                 iters = solve_slae_via_w(u, kx, ky, omega);
-                fprintf(omega_csv_fd, "%.2lf %d\n", omega, iters);
+                if (iters != -1){
+                    fprintf(omega_csv_fd, "%.2lf %d\n", omega, iters);
+                }
                 if ((optimal_iters > iters) && (iters != -1)){
                     optimal_iters = iters;
                     optimal_omega = omega;
                 }
-                omega += 0.01;
+
+                omega += 0.05;
                 memset(u, 0, sizeof u);
             }
 
